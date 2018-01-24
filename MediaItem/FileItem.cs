@@ -5,6 +5,7 @@
 //
 using System;
 using System.IO;
+using System.Management;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
 using System.Windows.Forms;
@@ -17,8 +18,6 @@ namespace IMAPI2.MediaItem
     /// </summary>
     class FileItem : IMediaItem
     {
-        private const Int64 SECTOR_SIZE = 2048;
-
         private Int64 m_fileLength = 0;
 
         public FileItem(string path)
@@ -39,7 +38,7 @@ namespace IMAPI2.MediaItem
             //
             SHFILEINFO shinfo = new SHFILEINFO();
             IntPtr hImg = Win32.SHGetFileInfo(filePath, 0, ref shinfo,
-                (uint)Marshal.SizeOf(shinfo), Win32.SHGFI_ICON | Win32.SHGFI_SMALLICON);
+                (uint)Marshal.SizeOf(shinfo), Win32.SHGFI_ICON);
 
             if (shinfo.hIcon != null)
             {
@@ -66,12 +65,30 @@ namespace IMAPI2.MediaItem
         {
             get
             {
-                if (m_fileLength > 0)
-                {
-                    return ((m_fileLength / SECTOR_SIZE) + 1) * SECTOR_SIZE;
-                }
+                ulong cluster = 0;
+                string fileName = Path;
+                string driveLetter = System.IO.Path
+                    .GetPathRoot(fileName)
+                    .TrimEnd('\\');
 
-                return 0;
+                string queryString = string.Format("SELECT BlockSize, NumberOfBlocks " +
+                                                   " FROM Win32_Volume " +
+                                                   " WHERE DriveLetter = '{0}'", driveLetter);
+
+                using (ManagementObjectSearcher searcher = new
+                    ManagementObjectSearcher(queryString))
+                {
+                    foreach (ManagementObject item in searcher.Get())
+                    {
+                        cluster = (ulong)item["BlockSize"];
+                        break;
+                    }
+                }
+                var clusterSize = Convert.ToInt64(cluster);
+                var size = m_fileLength;
+                long bytes = ((size + clusterSize - 1) / clusterSize) * clusterSize;
+
+                return bytes;
             }
         }
 

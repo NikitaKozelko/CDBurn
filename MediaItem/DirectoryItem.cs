@@ -50,7 +50,7 @@ namespace IMAPI2.MediaItem
             //
             SHFILEINFO shinfo = new SHFILEINFO();
             IntPtr hImg = Win32.SHGetFileInfo(m_directoryPath, 0, ref shinfo,
-                (uint)Marshal.SizeOf(shinfo), Win32.SHGFI_ICON | Win32.SHGFI_SMALLICON);
+                (uint)Marshal.SizeOf(shinfo), Win32.SHGFI_ICON);
 
             if (shinfo.hIcon != null)
             {
